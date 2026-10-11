@@ -1,6 +1,6 @@
 # CoinSeek Model
 
-Public Python training code for CoinSeek. The training workflow reads public Binance candles, trains a LightGBM return model, validates it on a later time window, exports ONNX, checks ONNX Runtime parity, and publishes the model files as a GitHub Release in this repository.
+Public Python training code for CoinSeek. The training workflow downloads public Binance market-data archives, trains a LightGBM return model, validates it on a later time window, exports ONNX, checks ONNX Runtime parity, and publishes the model files as a GitHub Release in this repository.
 
 ## Local training
 
@@ -22,7 +22,7 @@ The model predicts the next holding-period return from three versioned features:
 
 ## GitHub Workflow
 
-Run **Train and release ONNX model** with `workflow_dispatch`. Choose the market, interval, symbols, training dates, lookback, and prediction horizon. The workflow uses public market endpoints and never needs Binance credentials. After validation succeeds, it creates a versioned GitHub Release containing `model.onnx` and `manifest.json`; the workflow uses its repository-scoped `GITHUB_TOKEN` with `contents: write` permission.
+Run **Train and release ONNX model** with `workflow_dispatch`. Choose the market, interval, symbols, training dates, lookback, and prediction horizon. The workflow downloads public monthly and daily archives from Binance Vision and never needs Binance credentials or direct access to the Binance REST API. USD-M funding-rate archives are monthly, so set `end` to midnight UTC on the first day of a month (for example, `2026-10-01T00:00:00Z`) to train through the prior month. After validation succeeds, it creates a versioned GitHub Release containing `model.onnx` and `manifest.json`; the workflow uses its repository-scoped `GITHUB_TOKEN` with `contents: write` permission.
 
 Release assets are public. The generated model ID includes the workflow run and attempt IDs so each run has a unique release tag.
 
