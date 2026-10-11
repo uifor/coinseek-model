@@ -1,6 +1,6 @@
 # CoinSeek Model
 
-Public Python training code for CoinSeek. The training workflow reads public Binance candles, trains a LightGBM return model, validates it on a later time window, exports ONNX, checks ONNX Runtime parity, and publishes candidate files to a private S3-compatible store.
+Public Python training code for CoinSeek. The training workflow reads public Binance candles, trains a LightGBM return model, validates it on a later time window, exports ONNX, checks ONNX Runtime parity, and publishes the model files as a GitHub Release in this repository.
 
 ## Local training
 
@@ -10,7 +10,7 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 python -m pytest
 python -m coinseek_model.train \
-  --job-id local-example \
+  --model-id local-example \
   --market usdm \
   --interval 1h \
   --symbols BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT \
@@ -22,24 +22,19 @@ The model predicts the next holding-period return from three versioned features:
 
 ## GitHub Workflow
 
-Run **Train and publish ONNX model** with `workflow_dispatch`. The training job uses public market endpoints and never needs Binance credentials. Add a protected GitHub Environment named `model-publish` and configure these secrets:
+Run **Train and release ONNX model** with `workflow_dispatch`. Choose the market, interval, symbols, training dates, lookback, and prediction horizon. The workflow uses public market endpoints and never needs Binance credentials. After validation succeeds, it creates a versioned GitHub Release containing `model.onnx` and `manifest.json`; the workflow uses its repository-scoped `GITHUB_TOKEN` with `contents: write` permission.
 
-- `MODEL_S3_ENDPOINT`
-- `MODEL_S3_ACCESS_KEY`
-- `MODEL_S3_SECRET_KEY`
-- `MODEL_S3_BUCKET`
-
-Optionally set `MODEL_S3_PREFIX` as an environment variable. Restrict environment deployment to the protected default branch and require review for publishing changes. Candidate files are written to `<prefix>/<job_id>/model.onnx` and `manifest.json`; they are not uploaded as public GitHub artifacts.
+Release assets are public. The generated model ID includes the workflow run and attempt IDs so each run has a unique release tag.
 
 ## Model contract
 
 The ONNX input is a `float32` tensor named `features`, shaped `[asset_count, 3]`, in the feature order declared in `manifest.json`. The output is one predicted return score per asset. The model artifact is immutable and carries its feature schema version, training window, code commit, runtime versions, validation metrics, and SHA-256 checksum.
 
-CoinSeek should validate the manifest and checksum before loading a model. Strategy execution must pin an approved model version; training only creates candidates and never changes a live strategy's model automatically.
+CoinSeek validates the manifest and checksum during manual import, then loads and smoke-tests the ONNX model with its Go runtime. Strategy execution must pin an approved model version; training only publishes files and never changes a live strategy's model automatically.
 
 ## CoinSeek server configuration
 
-Configure the backend with a GitHub token that can dispatch and read workflow runs in this repository (`MODEL_WORKFLOW_TOKEN`). Set `MODEL_ARTIFACT_BUCKET` and `MODEL_ARTIFACT_PREFIX` to the same bucket and prefix configured in the `model-publish` environment. The server's configured S3/MinIO credentials must be able to read those objects. Install a compatible ONNX Runtime shared library on the Go server and set its absolute path with `ONNX_RUNTIME_LIBRARY`; a candidate is not approvable until the Go runtime loads it and successfully runs a validation input.
+Download `model.onnx` and `manifest.json` from the desired Release, then import both files in CoinSeek's Factor Research page. The authenticated user owns the imported candidate. CoinSeek stores the artifact in its configured file storage, so no GitHub token or S3 publishing secrets are needed by the training workflow. Install a compatible ONNX Runtime shared library on the Go server and set its absolute path with `ONNX_RUNTIME_LIBRARY`.
 
 ## License
 
