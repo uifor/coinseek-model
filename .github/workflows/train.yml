@@ -22,7 +22,7 @@ on:
         required: true
         type: string
       end:
-        description: Training end in ISO-8601 UTC
+        description: Training end in ISO-8601 UTC; for USD-M use the first day of a month
         required: true
         type: string
       lookback:
