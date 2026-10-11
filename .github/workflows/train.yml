@@ -1,0 +1,89 @@
+name: Train and publish ONNX model
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: CoinSeek training job identifier
+        required: true
+        type: string
+      market:
+        description: Binance market
+        required: true
+        type: choice
+        options: [usdm, spot]
+      interval:
+        description: Candle interval
+        required: true
+        type: choice
+        options: [1h, 4h, 1d]
+      symbols:
+        description: Comma-separated symbols, between 4 and 30
+        required: true
+        type: string
+      start:
+        description: Training start in ISO-8601 UTC
+        required: true
+        type: string
+      end:
+        description: Training end in ISO-8601 UTC
+        required: true
+        type: string
+      lookback:
+        description: Feature lookback bars
+        required: true
+        default: "48"
+        type: string
+      horizon:
+        description: Prediction holding horizon in bars
+        required: true
+        default: "8"
+        type: string
+
+permissions:
+  contents: read
+
+run-name: Train CoinSeek model ${{ inputs.job_id }}
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    environment: model-publish
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install .
+      - name: Train, validate, and export ONNX
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          MARKET: ${{ inputs.market }}
+          INTERVAL: ${{ inputs.interval }}
+          SYMBOLS: ${{ inputs.symbols }}
+          TRAIN_START: ${{ inputs.start }}
+          TRAIN_END: ${{ inputs.end }}
+          LOOKBACK: ${{ inputs.lookback }}
+          HORIZON: ${{ inputs.horizon }}
+        run: >-
+          python -m coinseek_model.train
+          --job-id "$JOB_ID"
+          --market "$MARKET"
+          --interval "$INTERVAL"
+          --symbols "$SYMBOLS"
+          --start "$TRAIN_START"
+          --end "$TRAIN_END"
+          --lookback "$LOOKBACK"
+          --horizon "$HORIZON"
+      - name: Publish candidate to private S3-compatible storage
+        env:
+          MODEL_S3_ENDPOINT: ${{ secrets.MODEL_S3_ENDPOINT }}
+          MODEL_S3_ACCESS_KEY: ${{ secrets.MODEL_S3_ACCESS_KEY }}
+          MODEL_S3_SECRET_KEY: ${{ secrets.MODEL_S3_SECRET_KEY }}
+          MODEL_S3_BUCKET: ${{ secrets.MODEL_S3_BUCKET }}
+          MODEL_S3_PREFIX: ${{ vars.MODEL_S3_PREFIX }}
+          JOB_ID: ${{ inputs.job_id }}
+        run: python -m coinseek_model.publish --job-id "$JOB_ID"
