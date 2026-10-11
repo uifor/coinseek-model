@@ -23,6 +23,8 @@ from coinseek_model import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 from coinseek_model.data import fetch_candles, fetch_funding_rates, parse_utc
 from coinseek_model.features import build_dataset, rank_portfolio_returns
 
+ONNX_OPSET = 15
+
 
 def train(args: argparse.Namespace) -> Path:
     start = parse_utc(args.start)
@@ -102,7 +104,7 @@ def train(args: argparse.Namespace) -> Path:
     onnx_model = onnxmltools.convert_lightgbm(
         model,
         initial_types=[("features", FloatTensorType([None, len(FEATURE_NAMES)]))],
-        target_opset=17,
+        target_opset=ONNX_OPSET,
     )
     model_path = output / "model.onnx"
     onnxmltools.utils.save_model(onnx_model, str(model_path))
@@ -125,7 +127,7 @@ def train(args: argparse.Namespace) -> Path:
         "model_id": args.model_id,
         "model_family": "lightgbm_regressor",
         "model_format": "onnx",
-        "onnx_opset": 17,
+        "onnx_opset": ONNX_OPSET,
         "input_name": "features",
         "output_name": session.get_outputs()[0].name,
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
