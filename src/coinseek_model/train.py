@@ -122,7 +122,7 @@ def train(args: argparse.Namespace) -> Path:
     except (OSError, subprocess.CalledProcessError):
         git_commit = "unknown"
     manifest = {
-        "model_id": args.job_id,
+        "model_id": args.model_id,
         "model_family": "lightgbm_regressor",
         "model_format": "onnx",
         "onnx_opset": 17,
@@ -161,7 +161,7 @@ def train(args: argparse.Namespace) -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job-id", default=os.getenv("GITHUB_RUN_ID", "local"))
+    parser.add_argument("--model-id", default=os.getenv("GITHUB_RUN_ID", "local"))
     parser.add_argument("--market", choices=("spot", "usdm"), required=True)
     parser.add_argument("--interval", choices=("1h", "4h", "1d"), required=True)
     parser.add_argument("--symbols", required=True, help="comma-separated Binance symbols")
@@ -174,8 +174,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--slippage-bps", type=float, default=2.0)
     parser.add_argument("--output", default="model-output")
     args = parser.parse_args()
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", args.job_id):
-        parser.error("job_id must be 1-64 safe identifier characters")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", args.model_id):
+        parser.error("model_id must be 1-64 safe identifier characters")
     args.symbols = sorted({symbol.strip().upper() for symbol in args.symbols.split(",") if symbol.strip()})
     if len(args.symbols) < 4 or len(args.symbols) > 30:
         parser.error("symbols must contain 4 to 30 distinct symbols")
